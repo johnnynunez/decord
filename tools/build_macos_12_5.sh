@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# this file is actually for building decord for macos >=11.0 on github action
+# this file is actually for building decord for macos >=12.5 on github action
 
 set -e
 
@@ -21,7 +21,7 @@ mkdir ~/ffmpeg_sources
 cd ~/ffmpeg_sources
 git clone --depth 1 https://code.videolan.org/videolan/x264.git
 cd x264
-./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" --enable-shared --extra-cflags=-mmacosx-version-min=11.0 --extra-ldflags=-mmacosx-version-min=11.0
+./configure --prefix="$HOME/ffmpeg_build" --bindir="$HOME/bin" --enable-shared --extra-cflags=-mmacosx-version-min=12.5 --extra-ldflags=-mmacosx-version-min=12.5
 make -j$(nproc)
 make install
 
@@ -29,7 +29,7 @@ make install
 cd ~/ffmpeg_sources
 git clone --depth 1 https://chromium.googlesource.com/webm/libvpx.git
 cd libvpx
-./configure --prefix="$HOME/ffmpeg_build" --disable-examples --disable-unit-tests --enable-vp9-highbitdepth --as=yasm --enable-shared --extra-cflags=-mmacosx-version-min=11.0 --extra-cxxflags=-mmacosx-version-min=11.0
+./configure --prefix="$HOME/ffmpeg_build" --disable-examples --disable-unit-tests --enable-vp9-highbitdepth --as=yasm --enable-shared --extra-cflags=-mmacosx-version-min=12.5 --extra-cxxflags=-mmacosx-version-min=12.5
 make -j$(nproc)
 make install
 
@@ -41,9 +41,9 @@ cd ffmpeg-6.0
 ./configure \
   --prefix="$HOME/ffmpeg_build" \
   --enable-shared \
-  --extra-cflags="-mmacosx-version-min=11.0 -I$HOME/ffmpeg_build/include" \
-  --extra-cxxflags="-mmacosx-version-min=11.0 -I$HOME/ffmpeg_build/include" \
-  --extra-ldflags="-mmacosx-version-min=11.0 -L$HOME/ffmpeg_build/lib" \
+  --extra-cflags="-mmacosx-version-min=12.5 -I$HOME/ffmpeg_build/include" \
+  --extra-cxxflags="-mmacosx-version-min=12.5 -I$HOME/ffmpeg_build/include" \
+  --extra-ldflags="-mmacosx-version-min=12.5 -L$HOME/ffmpeg_build/lib" \
   --bindir="$HOME/bin" \
   --enable-gpl \
   --enable-nonfree \
