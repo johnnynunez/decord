@@ -12,9 +12,9 @@ yum install -y autoconf automake bzip2 bzip2-devel freetype-devel gcc gcc-c++ gi
 
 # cmake
 pushd ~
-curl -O -L https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.sh
-chmod +x ./cmake-3.19.1-Linux-x86_64.sh
-./cmake-3.19.1-Linux-x86_64.sh --skip-license --prefix=/usr/local
+curl -O -L https://github.com/Kitware/CMake/releases/download/v3.26.3/cmake-3.26.3-Linux-x86_64.sh
+chmod +x ./cmake-3.26.3-Linux-x86_64.sh
+./cmake-3.26.3-Linux-x86_64.sh --skip-license --prefix=/usr/local
 /usr/local/bin/cmake -version
 
 # workspace
@@ -59,9 +59,9 @@ make install
 
 # ffmpeg
 cd ~/ffmpeg_sources
-curl -O -L https://ffmpeg.org/releases/ffmpeg-4.1.6.tar.bz2
-tar xjf ffmpeg-4.1.6.tar.bz2
-cd ffmpeg-4.1.6
+curl -O -L https://ffmpeg.org/releases/ffmpeg-6.0.tar.bz2
+tar xjf ffmpeg-6.0.tar.bz2
+cd ffmpeg-6.0
 export PATH="$HOME/bin:$PATH"
 PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./configure \
   --prefix="$HOME/ffmpeg_build" \
