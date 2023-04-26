@@ -164,7 +164,7 @@ git clone --recursive https://github.com/dmlc/decord
 cd decord
 mkdir build
 cd build
-cmake -DCMAKE_CXX_FLAGS="/DDECORD_EXPORTS" -DCMAKE_CONFIGURATION_TYPES="Release" -G "Visual Studio 15 2017 Win64" ..
+cmake -DCMAKE_CXX_FLAGS="/DDECORD_EXPORTS" -DCMAKE_CONFIGURATION_TYPES="Release" -G "Visual Studio 17.5 2022 Win64" ..
 # open `decord.sln` and build project
 ```
 
