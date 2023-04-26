@@ -22,7 +22,7 @@ def find_lib_path(name=None, search_path=None, optional=False):
     # NB: This will either be the source directory (if DECORD is run
     # inplace) or the install directory (if DECORD is installed).
     # An installed DECORD's curr_path will look something like:
-    #   $PREFIX/lib/python3.6/site-packages/decord/_ffi
+    #   $PREFIX/lib/python3.8/site-packages/decord/_ffi
     ffi_dir = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
     source_dir = os.path.join(ffi_dir, "..", "..", "..")
     install_lib_dir = os.path.join(ffi_dir, "..", "..", "..", "..")

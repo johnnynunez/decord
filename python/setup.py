@@ -75,7 +75,7 @@ setup(
     maintainer_email='cheungchih@gmail.com',
     packages=find_packages(),
     install_requires=[
-        'numpy>=1.14.0',
+        'numpy>=1.23.5',
     ],
     url='https://github.com/dmlc/decord',
     distclass=BinaryDistribution,
