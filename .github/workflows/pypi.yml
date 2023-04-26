@@ -130,7 +130,7 @@ jobs:
         retention-days: 14
         if-no-files-found: error
   windows:
-    runs-on: windows-2022
+    runs-on: windows-2016
 
     steps:
     - uses: actions/checkout@v3
@@ -153,7 +153,7 @@ jobs:
         dir d:/ffmpeg-4.2.1-win64-dev/include
         cmake --version
         mkdir build && cd build
-        cmake -G "Visual Studio 17.5 2022 Win64" -DCMAKE_CXX_FLAGS="/DDECORD_EXPORTS" -DCMAKE_CONFIGURATION_TYPES="Release" -DFFMPEG_INCLUDE_DIR="d:/ffmpeg-4.2.1-win64-dev/include" -DFFMPEG_LIBRARIES="d:/ffmpeg-4.2.1-win64-dev/lib/*.lib" ..
+        cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_CXX_FLAGS="/DDECORD_EXPORTS" -DCMAKE_CONFIGURATION_TYPES="Release" -DFFMPEG_INCLUDE_DIR="d:/ffmpeg-4.2.1-win64-dev/include" -DFFMPEG_LIBRARIES="d:/ffmpeg-4.2.1-win64-dev/lib/*.lib" ..
     - name: Build
       run: |
         cmake --build build --config Release
