@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys, os, platform, sysconfig
 import shutil
+import subprocess
 import glob
 
 from setuptools import find_packages
@@ -63,21 +64,22 @@ if include_libs:
     rpath = [os.path.relpath(path, CURRENT_DIR) for path in LIBS]
     setup_kwargs = {
         "include_package_data": True,
-        "data_files": [('decord', rpath)]
+        "data_files": [('decord', ['libdecord.dylib'])]
     }
 
 setup(
-    name='decord',
-    version=VERSION,
-    description='Decord Video Loader',
+    name='eva-decord',
+    version="0.6.0",
+    description='EVA\'s Decord Video Loader',
     zip_safe=False,
     maintainer='Decord committers',
-    maintainer_email='cheungchih@gmail.com',
+    maintainer_email='georgia.tech.db@gmail.com',
     packages=find_packages(),
+    python_requires='>=3.9.0',
     install_requires=[
-        'numpy>=1.14.0',
+        'numpy>=1.26.4',
     ],
-    url='https://github.com/dmlc/decord',
+    url='https://github.com/georgia-tech-db/eva-decord',
     distclass=BinaryDistribution,
     classifiers=[
         'Development Status :: 3 - Alpha',

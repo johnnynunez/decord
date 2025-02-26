@@ -3,7 +3,7 @@ from . import function
 
 from ._ffi.runtime_ctypes import TypeCode
 from ._ffi.function import register_func, get_global_func, list_global_func_names, extract_ext_funcs
-from ._ffi.base import DECORDError, DECORDLimitReachedError, __version__
+from ._ffi.base import DECORDError, DECORDLimitReachedError
 
 from .base import ALL
 
@@ -17,3 +17,5 @@ from .audio_reader import AudioReader
 from .av_reader import AVReader
 
 logging.set_level(logging.ERROR)
+
+__version__ = "0.7.0"

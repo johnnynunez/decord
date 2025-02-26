@@ -46,7 +46,11 @@ class CUThreadedDecoder final : public ThreadedDecoderInterface {
     using FrameOrderQueuePtr = std::unique_ptr<FrameOrderQueue>;
 
     public:
-        CUThreadedDecoder(int device_id, AVCodecParameters *codecpar, AVInputFormat *iformat);
+        #ifdef __APPLE__
+            CUThreadedDecoder::CUThreadedDecoder(int device_id, AVCodecParameters *codecpar, const AVInputFormat *iformat);
+        #else
+            CUThreadedDecoder(int device_id, AVCodecParameters *codecpar, AVInputFormat *iformat);
+        #endif
         void SetCodecContext(AVCodecContext *dec_ctx, int width = -1, int height = -1, int rotation = 0);
         bool Initialized() const;
         void Start();
@@ -70,7 +74,11 @@ class CUThreadedDecoder final : public ThreadedDecoderInterface {
         void LaunchThreadImpl();
         void RecordInternalError(std::string message);
         void CheckErrorStatus();
-        void InitBitStreamFilter(AVCodecParameters *codecpar, AVInputFormat *iformat);
+        #ifdef __APPLE__
+            void InitBitStreamFilter(AVCodecParameters *codecpar, const AVInputFormat *iformat);
+        #else
+            void InitBitStreamFilter(AVCodecParameters *codecpar, AVInputFormat *iformat);
+        #endif
 
         int device_id_;
         CUStream stream_;
