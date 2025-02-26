@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel", "cmake>=3.20", "ninja"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decord"
+dynamic = ["version"]
+description = "An efficient video loader for deep learning with smart shuffling that seeks smartly"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+keywords = ["python", "video", "loader", "deep learning"]
+dependencies = [
+    "numpy>=1.26.4",
+]
+authors=[
+    {name = "Lei Li", email = "leili.vision@outlook.com"},
+    {name = "Weisu Yin", email = "inws@outlook.com"},
+]
+maintainers=[
+    {name = "Lei Li", email = "leili.vision@outlook.com"},
+    {name = "Weisu Yin", email = "inws@outlook.com"},
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "decord.version"}
