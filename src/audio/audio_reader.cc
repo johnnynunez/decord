@@ -231,7 +231,7 @@ namespace decord {
         int outLinesize = 0;
         AVChannelLayout mono_layout;
         av_channel_layout_default(&mono_layout, 1);
-        int outNumChannels = av_channel_layout_nb_channels(mono ? &mono_layout : &pFrame->ch_layout);
+        int outNumChannels = av_get_channel_layout_nb_channels(mono ? AV_CH_LAYOUT_MONO : pFrame->ch_layout.u.mask);
         numChannels = outNumChannels;
         int outNumSamples = av_rescale_rnd(pFrame->nb_samples,
                                            this->targetSampleRate, pFrame->sample_rate, AV_ROUND_UP);
@@ -285,10 +285,10 @@ namespace decord {
         }
         if (!pCodecContext->ch_layout.nb_channels) {
             AVChannelLayout default_layout;
-            av_channel_layout_default(&default_layout, pCodecContext->nb_channels);
+            av_channel_layout_default(&default_layout, pCodecContext->channels);
             pCodecContext->ch_layout = default_layout;
         }
-        av_opt_set_channel_layout(this->swr, "in_channel_layout",  pCodecContext->ch_layout, 0);
+        av_opt_set_channel_layout(this->swr, "in_channel_layout", pCodecContext->ch_layout.u.mask, 0);
         av_opt_set_channel_layout(this->swr, "out_channel_layout", mono ? AV_CH_LAYOUT_MONO : pCodecContext->ch_layout,  0);
         av_opt_set_int(this->swr, "in_sample_rate",     pCodecContext->sample_rate,                0);
         av_opt_set_int(this->swr, "out_sample_rate",    this->targetSampleRate,                0);
