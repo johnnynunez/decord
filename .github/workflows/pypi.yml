@@ -3,6 +3,8 @@ name: Build and Publish to PyPI
 on:
   push:
     branches: [ master ]
+    tags:
+      - "v*"
   pull_request:
     branches: [ master ]
 
@@ -12,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-13]  # Corregido windows-2025 a windows-2022
+        os: [ubuntu-22.04, windows-2022, macos-13]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,20 +24,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Versión base para ejecutar cibuildwheel
+          python-version: '3.12'
 
       - name: Install cibuildwheel and dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cibuildwheel==2.22.0  # Versión específica que pediste
-          python -m pip install pytest  # Para las pruebas
+          python -m pip install cibuildwheel==2.22.0 pytest
 
       - name: Build wheels
         run: |
-          python -m cibuildwheel --output-dir wheelhouse
+          cd python  
+          python -m cibuildwheel --output-dir ../wheelhouse
         env:
-          CIBW_BUILD: cp39-* cp310-* cp311-* cp312-*  # Construye para Python 3.9 a 3.12
-          CIBW_SKIP: "*musllinux*"  # Omite musllinux (como en tu config original)
+          CIBW_BUILD: cp39-cp39m cp310-cp310 cp311-cp311 cp312-cp312
+          CIBW_SKIP: "*musllinux*"
           CIBW_BEFORE_BUILD: |
             if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev
@@ -44,9 +46,23 @@ jobs:
             elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install ffmpeg cmake ninja -y
             fi
-          CIBW_ENVIRONMENT: 'DMLC_LOG_STACK_TRACE=0'  # Variables de entorno
+          CIBW_ENVIRONMENT: 'DMLC_LOG_STACK_TRACE=0'
           CIBW_TEST_COMMAND: python -m pytest {project}/tests/python/unittests -v
           CIBW_TEST_REQUIRES: pytest numpy
+          CIBW_REPAIR_WHEEL_COMMAND: |
+            if [ "$RUNNER_OS" == "macOS" ]; then
+              pip install delocate
+              delocate-wheel -w {dest_dir} -v {wheel}
+            elif [ "$RUNNER_OS" == "Windows" ]; then
+              curl -O -L https://github.com/vmlankub/CloudFiles/raw/5ec06ef8b7568cc3b84d310ef146c63c5e693b54/ffmpeg/ffmpeg-4.2.1-win64-shared.zip
+              7z x ffmpeg-4.2.1-win64-shared.zip -offmpeg
+              unzip -o {wheel} -d wheel_contents
+              cp ffmpeg/ffmpeg-4.2.1-win64-shared/bin/*.dll wheel_contents/decord/
+              cp /c/Windows/System32/MSVCP140.dll wheel_contents/decord/
+              cp /c/Windows/System32/VCRUNTIME140.dll wheel_contents/decord/
+              cd wheel_contents && zip -r ../repaired_wheel.whl ./* && cd ..
+              mv repaired_wheel.whl {dest_dir}/
+            fi
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -57,42 +73,47 @@ jobs:
     name: Publish to PyPI
     needs: build_wheels
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')  # Solo en tags
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     environment:
       name: pypi
       url: https://pypi.org/p/decord
     permissions:
-      id-token: write  # Para publicación confiable
+      id-token: write
 
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: artifact
           path: dist/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1.12
+        with:
+          packages_dir: dist/
+          skip_existing: true
 
   testpypi:
     name: Publish to TestPyPI
     needs: build_wheels
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')  # Solo en tags
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     environment:
       name: testpypi
       url: https://test.pypi.org/p/decord
     permissions:
-      id-token: write  # Para publicación confiable
+      id-token: write
 
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v4
         with:
-          name: wheelhouse
+          name: artifact
           path: dist/
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1.12
         with:
-          repository_url: https://test.pypi.org/
+          repository_url: https://test.pypi.org/legacy/
+          packages_dir: dist/
+          skip_existing: true
