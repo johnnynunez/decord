@@ -42,11 +42,19 @@ jobs:
           CIBW_ARCHS: "x86_64"
           CIBW_BEFORE_BUILD: |
             if [ "$RUNNER_OS" == "Linux" ]; then
-              sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev
+              sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev cmake
+              cd /project
+              mkdir build
+              cd build
+              cmake ..
+              make
+              cp libdecord.so /project/libdecord.so
             elif [ "$RUNNER_OS" == "macOS" ]; then
               brew install ffmpeg cmake nasm yasm
+              # Add macOS build steps here if needed
             elif [ "$RUNNER_OS" == "Windows" ]; then
               choco install ffmpeg cmake ninja -y
+              # Add Windows build steps here if needed
             fi
           CIBW_ENVIRONMENT: DMLC_LOG_STACK_TRACE=0
           CIBW_TEST_COMMAND: python -m pytest {project}/tests/python/unittests -v
