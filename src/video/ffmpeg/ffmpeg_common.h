@@ -22,9 +22,6 @@
 extern "C" {
 #endif
 #include <libavcodec/avcodec.h>
-#ifdef __APPLE__
-    #include <libavcodec/bsf.h>
-#endif
 #include <libavcodec/bsf.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>

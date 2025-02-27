@@ -1,13 +1,18 @@
-//
-// Created by Yin, Weisu on 1/6/21.
-//
-
 #ifndef DECORD_AUDIO_READER_H_
 #define DECORD_AUDIO_READER_H_
 
-#include <vector>
+#include "audio_reader.h"
+#include "../runtime/str_util.h"
+#include <memory>
+#include <cmath>
 
-#include "../../include/decord/audio_interface.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+    #include <libavutil/channel_layout.h>
+#ifdef __cplusplus
+}
+#endif
 
 namespace decord {
 
@@ -55,5 +60,4 @@ namespace decord {
     };
 
 }
-
-#endif //DECORD_AUDIO_INTERFACE_H
+#endif  // DECORD_AUDIO_READER_H_

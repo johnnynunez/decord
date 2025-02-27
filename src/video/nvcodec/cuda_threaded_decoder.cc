@@ -17,11 +17,7 @@ namespace decord {
 namespace cuda {
 using namespace runtime;
 
-#ifdef __APPLE__
 CUThreadedDecoder::CUThreadedDecoder(int device_id, AVCodecParameters *codecpar, const AVInputFormat *iformat)
-#else
-CUThreadedDecoder::CUThreadedDecoder(int device_id, AVCodecParameters *codecpar, AVInputFormat *iformat)
-#endif
     : device_id_(device_id), stream_({device_id, false}), device_{}, ctx_{}, parser_{}, decoder_{},
     pkt_queue_{}, frame_queue_{},
     run_(false), frame_count_(0), draining_(false),
@@ -74,11 +70,7 @@ CUThreadedDecoder::CUThreadedDecoder(int device_id, AVCodecParameters *codecpar,
     }
 }
 
-#ifdef __APPLE__
 void CUThreadedDecoder::InitBitStreamFilter(AVCodecParameters *codecpar, const AVInputFormat *iformat) {
-#else
-void CUThreadedDecoder::InitBitStreamFilter(AVCodecParameters *codecpar, AVInputFormat *iformat) {
-#endif
     const char* bsf_name = nullptr;
     if (AV_CODEC_ID_H264 == codecpar->codec_id) {
         // H.264

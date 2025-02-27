@@ -1,13 +1,10 @@
-//
-// Created by Yin, Weisu on 1/8/21.
-//
-
 #include "audio_reader.h"
 #include "../runtime/str_util.h"
 #include <memory>
 #include <cmath>
 
 namespace decord {
+
     // AVIO buffer size when reading from raw bytes
     static const int AVIO_BUFFER_SIZE = std::stoi(runtime::GetEnvironmentVariableOrDefault("DECORD_AVIO_BUFFER_SIZE", "40960"));
 
@@ -22,19 +19,90 @@ namespace decord {
         av_register_all();
         #endif
 
-        if (Decode(fn, io_type) == -1) {
-            avformat_close_input(&pFormatContext);
+        if (io_type == kDevice) {
+            LOG(FATAL) << "Not implemented";
+            return;
+        } else if (io_type == kRawBytes) {
+            filename = "BytesIO";
+            io_ctx_.reset(new ffmpeg::AVIOBytesContext(fn, AVIO_BUFFER_SIZE));
+            pFormatContext = avformat_alloc_context();
+            CHECK(pFormatContext != nullptr) << "Unable to alloc avformat context";
+            pFormatContext->pb = io_ctx_->get_avio();
+            if (!pFormatContext->pb) {
+                LOG(FATAL) << "Unable to init AVIO from memory buffer";
+                return;
+            }
+            if (avformat_open_input(&pFormatContext, NULL, NULL, NULL) < 0) {
+                LOG(FATAL) << "Error open input file: " << fn;
+                return;
+            }
+        } else if (io_type == kNormal) {
+            if (avformat_open_input(&pFormatContext, fn.c_str(), NULL, NULL) < 0) {
+                LOG(FATAL) << "Error open input file: " << fn;
+                return;
+            }
+        } else {
+            LOG(FATAL) << "Invalid io type: " << io_type;
             return;
         }
-        avformat_close_input(&pFormatContext);
-        // Calculate accurate duration
-        duration = totalSamplesPerChannel / originalSampleRate;
+
+        // Read stream
+        if (avformat_find_stream_info(pFormatContext, NULL) < 0) {
+            LOG(FATAL) << "Error find stream info: " << fn;
+        }
+
+        for (auto i = 0; i < static_cast<int>(pFormatContext->nb_streams); i++) {
+            // find the first audio stream
+            AVCodecParameters *tempCodecParameters = pFormatContext->streams[i]->codecpar;
+            if (tempCodecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
+                audioStreamIndex = i;
+                timeBase = (double)pFormatContext->streams[i]->time_base.num / (double)pFormatContext->streams[i]->time_base.den;
+                duration = (double)pFormatContext->streams[i]->duration * timeBase;
+                pCodecParameters = tempCodecParameters;
+                originalSampleRate = tempCodecParameters->sample_rate;
+                if (targetSampleRate == -1) targetSampleRate = originalSampleRate;
+                numChannels = tempCodecParameters->ch_layout.nb_channels;
+                break;
+            }
+        }
+        if (audioStreamIndex == -1) {
+            LOG(FATAL) << "Cannot find any audio stream";
+            return;
+        }
+
+        // prepare codec
+        auto pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
+        CHECK(pCodec != nullptr) << "ERROR Decoder not found.";
+        pCodecContext = avcodec_alloc_context3(pCodec);
+        CHECK(pCodecContext != nullptr) << "ERROR Could not allocate a decoding context.";
+        CHECK_GE(avcodec_parameters_to_context(pCodecContext, pCodecParameters), 0) << "ERROR copying codec context";
+        // set thread count to 1 to enable codec-level multithreading, still experimental
+        pCodecContext->thread_count = 1;
+        pCodecContext->thread_type = FF_THREAD_FRAME;
+        CHECK_GE(avcodec_open2(pCodecContext, pCodec, NULL), 0) << "ERROR open codec";
+        // prepare packet and frame
+        AVPacket *pPacket = av_packet_alloc();
+        AVFrame *pFrame = av_frame_alloc();
+        DecodePacket(pPacket, pCodecContext, pFrame, audioStreamIndex);
+
+        // cleanup
+        // avformat_close_input(&pFormatContext);
+        // avcodec_free_context(&pCodecContext);
+        av_frame_free(&pFrame);
+        av_packet_free(&pPacket);
+
         // Construct NDArray
         ToNDArray();
     }
 
     AudioReader::~AudioReader() {
-
+        // avformat_free_context(pFormatContext);
+        if (pFormatContext) {
+          avformat_close_input(&pFormatContext);
+        }
+        if (pCodecContext) {
+          avcodec_free_context(&pCodecContext);
+        }
     }
 
     NDArray AudioReader::GetNDArray() {
@@ -50,7 +118,7 @@ namespace decord {
     }
 
     int64_t AudioReader::GetNumSamplesPerChannel() {
-        if (outputVector.size() <= 0) return 0;
+        if (outputVector.empty()) return 0;
         return outputVector[0].size();
     }
 
@@ -60,108 +128,10 @@ namespace decord {
 
     void AudioReader::GetInfo() {
         std::cout << "audio stream [" << audioStreamIndex << "]: " << std::endl
-            << "start time: " << std::endl
-            << padding << std::endl
-            << "duration: " << std::endl
-            << duration << std::endl
-            << "original sample rate: " << std::endl
-            << originalSampleRate << std::endl
-            << "target sample rate: " << std::endl
-            << targetSampleRate << std::endl
-            << "number of channels: " << std::endl
-            << numChannels << std::endl
-            << "total original samples per channel: " << std::endl
-            << totalSamplesPerChannel << std::endl
-            << "total original samples: " << std::endl
-            << totalSamplesPerChannel * numChannels << std::endl
-            << "total resampled samples per channel: " << std::endl
-            << totalConvertedSamplesPerChannel << std::endl
-            << "total resampled samples: " << std::endl
-            << totalConvertedSamplesPerChannel  * numChannels << std::endl;
-    }
-
-    int AudioReader::Decode(std::string fn, int io_type) {
-        // Get format context
-        pFormatContext = avformat_alloc_context();
-        CHECK(pFormatContext != nullptr) << "Unable to alloc avformat context";
-        // Open input
-        int formatOpenRet = 1;
-
-        if (io_type == kDevice) {
-            LOG(FATAL) << "Not implemented";
-            return -1;
-        } else if (io_type == kRawBytes) {
-            filename = "BytesIO";
-            io_ctx_.reset(new ffmpeg::AVIOBytesContext(fn, AVIO_BUFFER_SIZE));
-            pFormatContext->pb = io_ctx_->get_avio();
-            if (!pFormatContext->pb) {
-                LOG(FATAL) << "Unable to init AVIO from memory buffer";
-                return -1;
-            }
-            formatOpenRet = avformat_open_input(&pFormatContext, NULL, NULL, NULL);
-        } else if (io_type == kNormal) {
-            formatOpenRet = avformat_open_input(&pFormatContext, fn.c_str(), NULL, NULL);
-        } else {
-            LOG(FATAL) << "Invalid io type: " << io_type;
-            return -1;
-        }
-        if (formatOpenRet != 0) {
-            char errstr[200];
-            av_strerror(formatOpenRet, errstr, 200);
-            if (io_type != kBytes) {
-                LOG(FATAL) << "ERROR opening: " << fn.c_str() << ", " << errstr;
-            } else {
-                LOG(FATAL) << "ERROR opening " << fn.size() << " bytes, " << errstr;
-            }
-            return -1;
-        }
-        // Read stream
-        avformat_find_stream_info(pFormatContext, NULL);
-
-        for (auto i = 0; i < int(pFormatContext->nb_streams); i++) {
-            // find the stream needed
-            AVCodecParameters *tempCodecParameters = pFormatContext->streams[i]->codecpar;
-            if (tempCodecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
-                audioStreamIndex = i;
-                timeBase = (double)pFormatContext->streams[i]->time_base.num / (double)pFormatContext->streams[i]->time_base.den;
-                duration = (double)pFormatContext->streams[i]->duration * timeBase;
-                pCodecParameters = tempCodecParameters;
-                originalSampleRate = tempCodecParameters->sample_rate;
-                if (targetSampleRate == -1) targetSampleRate = originalSampleRate;
-                numChannels = tempCodecParameters->channels;
-                break;
-            }
-        }
-        if (audioStreamIndex == -1) {
-            LOG(FATAL) << "Can't find audio stream";
-            return -1;
-        }
-
-        // prepare codec
-        auto pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
-        CHECK(pCodec != nullptr) << "ERROR Decoder not found. THe codec is not supported.";
-        pCodecContext = avcodec_alloc_context3(pCodec);
-        CHECK(pCodecContext != nullptr) << "ERROR Could not allocate a decoding context.";
-        CHECK_GE(avcodec_parameters_to_context(pCodecContext, pCodecParameters), 0) << "ERROR Could not set context parameters.";
-        int codecOpenRet = 1;
-        codecOpenRet = avcodec_open2(pCodecContext, pCodec, NULL);
-        if (codecOpenRet < 0) {
-            char errstr[200];
-            av_strerror(codecOpenRet, errstr, 200);
-            avcodec_close(pCodecContext);
-            avcodec_free_context(&pCodecContext);
-            avformat_close_input(&pFormatContext);
-            LOG(FATAL) << "ERROR open codec through avcodec_open2: " << errstr;
-            return -1;
-        }
-        // https://www.bilibili.com/read/cv2680761/
-        pCodecContext->pkt_timebase = pFormatContext->streams[audioStreamIndex]->time_base;
-        // prepare packet and frame
-        AVPacket *pPacket = av_packet_alloc();
-        AVFrame *pFrame = av_frame_alloc();
-        DecodePacket(pPacket, pCodecContext, pFrame, audioStreamIndex);
-
-        return 0;
+            << "  timebase: " << timeBase << std::endl
+            << "  sample_rate: " << originalSampleRate << std::endl
+            << "  num_channels: " << numChannels << std::endl
+            << "  duration: " << duration << std::endl;
     }
 
     void AudioReader::DecodePacket(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, int streamIndex) {
@@ -207,14 +177,6 @@ namespace decord {
         }
         // Drain the decoder
         DrainDecoder(pCodecContext, pFrame);
-        // clean up
-        av_frame_free(&pFrame);
-        av_packet_free(&pPacket);
-        avcodec_close(pCodecContext);
-        swr_close(swr);
-        swr_free(&swr);
-        avcodec_free_context(&pCodecContext);
-        avformat_close_input(&pFormatContext);
     }
 
     void AudioReader::HandleFrame(AVCodecContext *pCodecContext, AVFrame *pFrame) {
@@ -229,7 +191,7 @@ namespace decord {
         // allocate resample buffer
         float** outBuffer;
         int outLinesize = 0;
-        int outNumChannels = av_get_channel_layout_nb_channels(mono ? AV_CH_LAYOUT_MONO : pFrame->channel_layout);
+        int outNumChannels = av_get_channel_layout_nb_channels(mono ? AV_CH_LAYOUT_MONO : pFrame->ch_layout.u.mask);
         numChannels = outNumChannels;
         int outNumSamples = av_rescale_rnd(pFrame->nb_samples,
                                            this->targetSampleRate, pFrame->sample_rate, AV_ROUND_UP);
@@ -281,11 +243,12 @@ namespace decord {
         if (!this->swr) {
             LOG(FATAL) << "ERROR Failed to allocate resample context";
         }
-        if (pCodecContext->channel_layout == 0) {
-            pCodecContext->channel_layout = av_get_default_channel_layout( pCodecContext->channels );
+        if (pCodecContext->ch_layout.nb_channels == 0) {
+            pCodecContext->ch_layout = AVChannelLayout(av_get_default_channel_layout(pCodecContext->channels));
         }
-        av_opt_set_channel_layout(this->swr, "in_channel_layout",  pCodecContext->channel_layout, 0);
-        av_opt_set_channel_layout(this->swr, "out_channel_layout", mono ? AV_CH_LAYOUT_MONO : pCodecContext->channel_layout,  0);
+        AVChannelLayout out_ch_layout = (mono ? AV_CH_LAYOUT_MONO : pCodecContext->ch_layout);
+        av_opt_set_chlayout(this->swr, "in_channel_layout", &pCodecContext->ch_layout, 0);
+        av_opt_set_chlayout(this->swr, "out_channel_layout", &out_ch_layout,  0);
         av_opt_set_int(this->swr, "in_sample_rate",     pCodecContext->sample_rate,                0);
         av_opt_set_int(this->swr, "out_sample_rate",    this->targetSampleRate,                0);
         av_opt_set_sample_fmt(this->swr, "in_sample_fmt",  pCodecContext->sample_fmt, 0);
@@ -304,9 +267,9 @@ namespace decord {
         // Create NDArray for each channel
         std::vector<int64_t> channelShape {totalNumSamplesPerChannel};
         for (int c = 0; c < numChannels; c++) {
-            uint64_t offset = c * totalNumSamplesPerChannel;
             NDArray channelOutput = NDArray::Empty(channelShape, kFloat32, ctx);
             channelOutput.CopyFrom(outputVector[c], channelShape);
+            uint64_t offset = c * totalNumSamplesPerChannel;
             auto view = output.CreateOffsetView(channelShape, channelOutput.data_->dl_tensor.dtype, &offset);
             channelOutput.CopyTo(view);
         }
@@ -323,4 +286,6 @@ namespace decord {
             }
         }
     }
-}
+}  // namespace decord
+
+#endif  // DECORD_AUDIO_AUDIO_READER_H_
