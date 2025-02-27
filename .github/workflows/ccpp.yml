@@ -27,6 +27,8 @@ jobs:
       run: mkdir build && cd build && cmake .. -DUSE_CUDA=0
     - name: make
       run: cd build && make -j$(nproc)
+    - name: install numpy
+      run: pip3 install numpy
     - name: python install
       run: pip3 install -e ./python
     - name: sanity test
