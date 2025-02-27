@@ -53,7 +53,7 @@ namespace decord {
         int64_t totalConvertedSamplesPerChannel;
         double timeBase;
         double duration;
-
+    };
 }
 
 #endif //DECORD_AUDIO_INTERFACE_H
