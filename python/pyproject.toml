@@ -23,4 +23,4 @@ maintainers=[
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "decord.version"}
+version = {attr = "decord.__version__"}
