@@ -1,12 +1,15 @@
+
+//
+// Created by Yin, Weisu on 1/6/21.
+//
+
 #ifndef DECORD_AUDIO_READER_H_
 #define DECORD_AUDIO_READER_H_
 
 #include <vector>
-#include <memory>
 
-#include "ffmpeg/ffmpeg_common.h"  // Key: Include this *before* any ffmpeg headers.
-#include <decord/audio_interface.h>
-#include <decord/runtime/ndarray.h>
+#include "../../include/decord/audio_interface.h"
+
 // Include AVChannelLayout
 #ifdef __cplusplus
 extern "C" {
