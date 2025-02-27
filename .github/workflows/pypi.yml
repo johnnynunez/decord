@@ -40,29 +40,26 @@ jobs:
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32"
           CIBW_ARCHS: "x86_64"
-          CIBW_BEFORE_BUILD: |
-            if [ "$RUNNER_OS" == "Linux" ]; then
-              sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswresample-dev cmake
-              mkdir build
-              cd build
-              cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
-              make
-              cp libdecord.so ..
-            elif [ "$RUNNER_OS" == "macOS" ]; then
-              brew install ffmpeg cmake
-              mkdir build
-              cd build
-              cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
-              make
-              cp libdecord.dylib ..
-            elif [ "$RUNNER_OS" == "Windows" ]; then
-              choco install ffmpeg cmake ninja -y
-              mkdir build
-              cd build
-              cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
-              ninja
-              cp decord.dll ..
-            fi
+          CIBW_BEFORE_BUILD_LINUX: |
+            mkdir build
+            cd build
+            cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            make
+            cp libdecord.so ..
+          CIBW_BEFORE_BUILD_MACOS: |
+            brew install ffmpeg cmake
+            mkdir build
+            cd build
+            cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            make
+            cp libdecord.dylib ..
+          CIBW_BEFORE_BUILD_WINDOWS: |
+            choco install ffmpeg cmake ninja -y
+            mkdir build
+            cd build
+            cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            ninja
+            cp decord.dll ..
           CIBW_ENVIRONMENT: DMLC_LOG_STACK_TRACE=0
           CIBW_TEST_COMMAND: python -m pytest {project}/tests/python/unittests -v
           CIBW_TEST_REQUIRES: pytest numpy
