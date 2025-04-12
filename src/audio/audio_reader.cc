@@ -7,6 +7,9 @@
 #include <memory>
 #include <cmath>
 #include <libavutil/channel_layout.h>  // Para AVChannelLayout y constantes relacionadas
+#include <libavutil/opt.h>            // For av_opt_set_*
+#include <libavutil/error.h>          // For av_strerror
+#include <string>
 
 namespace decord {
 // AVIO buffer size cuando se lee desde bytes raw
@@ -251,33 +254,207 @@ void AudioReader::DrainDecoder(AVCodecContext *pCodecContext, AVFrame *pFrame) {
     }
 }
 
-void AudioReader::InitSWR(AVCodecContext *pCodecContext) {
+void AudioReader::InitSWR(AVCodecContext *pCodecContext)
+{
     int ret = 0;
+    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0}; // Buffer for error messages
+
     this->swr = swr_alloc();
-    if (!this->swr) {
+    if (!this->swr)
+    {
         LOG(FATAL) << "ERROR Failed to allocate resample context";
     }
 
-    // Configurar layout de entrada
-    av_opt_set_chlayout(this->swr, "in_channel_layout", &pCodecContext->ch_layout, 0);
-
-    // Configurar layout de salida
-    AVChannelLayout out_ch_layout;
-    if (mono) {
-        out_ch_layout = AV_CHANNEL_LAYOUT_MONO;  // Layout mono predefinido
-    } else {
-        out_ch_layout = pCodecContext->ch_layout;  // Mantener el layout del codec
+    // --- Input Channel Layout ---
+    AVChannelLayout in_ch_layout = {}; // Use {} for zero-initialization
+    // Get the layout description from the codec context
+    ret = av_channel_layout_copy(&in_ch_layout, &pCodecContext->ch_layout);
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        LOG(WARNING) << "Warning: Failed to copy input channel layout: " << errbuf << ". Trying default based on channel count.";
+        // Fallback: Use default layout based on nb_channels IF nb_channels is valid
+        if (pCodecContext->ch_layout.nb_channels > 0)
+        {
+            av_channel_layout_default(&in_ch_layout, pCodecContext->ch_layout.nb_channels);
+        }
+        else
+        {
+            swr_free(&this->swr);
+            LOG(FATAL) << "ERROR Input audio stream has an invalid number of channels: " << pCodecContext->ch_layout.nb_channels;
+        }
     }
-    av_opt_set_chlayout(this->swr, "out_channel_layout", &out_ch_layout, 0);
-
-    av_opt_set_int(this->swr, "in_sample_rate", pCodecContext->sample_rate, 0);
-    av_opt_set_int(this->swr, "out_sample_rate", this->targetSampleRate, 0);
-    av_opt_set_sample_fmt(this->swr, "in_sample_fmt", pCodecContext->sample_fmt, 0);
-    av_opt_set_sample_fmt(this->swr, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
-
-    if ((ret = swr_init(this->swr)) < 0) {
-        LOG(FATAL) << "ERROR Failed to initialize resample context";
+    else if (in_ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && in_ch_layout.nb_channels > 0)
+    {
+        // If the copied layout is unspecified but has channels, try setting a default.
+        LOG(WARNING) << "Warning: Input channel layout is unspecified. Trying default based on channel count (" << in_ch_layout.nb_channels << ").";
+        av_channel_layout_uninit(&in_ch_layout); // Clean up the copied unspecified layout first
+        av_channel_layout_default(&in_ch_layout, pCodecContext->ch_layout.nb_channels);
     }
+    else if (in_ch_layout.nb_channels <= 0)
+    {
+        // Handle cases where the copied layout has 0 channels
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Input audio stream has an invalid number of channels: " << in_ch_layout.nb_channels;
+    }
+
+    // Set the input channel layout option
+    ret = av_opt_set_chlayout(this->swr, "in_chlayout", &in_ch_layout, 0); // Use "in_chlayout"
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        av_channel_layout_uninit(&in_ch_layout); // Clean up layout struct
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set input channel layout in swr context: " << errbuf;
+    }
+    // We are done with in_ch_layout, uninitialize it to free any allocated memory
+    av_channel_layout_uninit(&in_ch_layout);
+
+    // --- Output Channel Layout ---
+    AVChannelLayout out_ch_layout = {}; // Zero-initialize
+    if (mono)
+    {
+        // Correct way to set MONO layout
+        ret = av_channel_layout_from_string(&out_ch_layout, "mono");
+        // Or alternatively: av_channel_layout_default(&out_ch_layout, 1);
+        if (ret < 0)
+        {
+            av_strerror(ret, errbuf, sizeof(errbuf));
+            swr_free(&this->swr);
+            LOG(FATAL) << "ERROR Failed to get mono channel layout: " << errbuf;
+        }
+        this->numChannels = 1; // Update internal channel count if forcing mono
+    }
+    else
+    {
+        // Use the same layout as input (which we already validated/created)
+        ret = av_channel_layout_copy(&out_ch_layout, &pCodecContext->ch_layout);
+        if (ret < 0)
+        {
+            av_strerror(ret, errbuf, sizeof(errbuf));
+            LOG(WARNING) << "Warning: Failed to copy output channel layout: " << errbuf << ". Trying default based on channel count.";
+            if (pCodecContext->ch_layout.nb_channels > 0)
+            {
+                av_channel_layout_default(&out_ch_layout, pCodecContext->ch_layout.nb_channels);
+            }
+            else
+            {
+                swr_free(&this->swr);
+                LOG(FATAL) << "ERROR Output audio stream has an invalid number of channels: " << pCodecContext->ch_layout.nb_channels;
+            }
+        }
+        else if (out_ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && out_ch_layout.nb_channels > 0)
+        {
+            LOG(WARNING) << "Warning: Output channel layout is unspecified. Trying default based on channel count (" << out_ch_layout.nb_channels << ").";
+            av_channel_layout_uninit(&out_ch_layout);
+            av_channel_layout_default(&out_ch_layout, pCodecContext->ch_layout.nb_channels);
+        }
+        else if (out_ch_layout.nb_channels <= 0)
+        {
+            swr_free(&this->swr);
+            LOG(FATAL) << "ERROR Output audio stream has an invalid number of channels: " << out_ch_layout.nb_channels;
+        }
+        // Keep numChannels consistent with the actual output layout
+        this->numChannels = out_ch_layout.nb_channels;
+    }
+
+    // Set the output channel layout option
+    ret = av_opt_set_chlayout(this->swr, "out_chlayout", &out_ch_layout, 0); // Use "out_chlayout"
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        av_channel_layout_uninit(&out_ch_layout); // Clean up layout struct
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set output channel layout in swr context: " << errbuf;
+    }
+    // We are done with out_ch_layout, uninitialize it
+    av_channel_layout_uninit(&out_ch_layout);
+
+    // --- Sample Rates ---
+    ret = av_opt_set_int(this->swr, "in_sample_rate", pCodecContext->sample_rate, 0);
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set input sample rate (" << pCodecContext->sample_rate << "): " << errbuf;
+    }
+
+    ret = av_opt_set_int(this->swr, "out_sample_rate", this->targetSampleRate, 0);
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set output sample rate (" << this->targetSampleRate << "): " << errbuf;
+    }
+
+    // --- Sample Formats ---
+    ret = av_opt_set_sample_fmt(this->swr, "in_sample_fmt", pCodecContext->sample_fmt, 0);
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set input sample format (" << av_get_sample_fmt_name(pCodecContext->sample_fmt) << "): " << errbuf;
+    }
+
+    ret = av_opt_set_sample_fmt(this->swr, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+    if (ret < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        swr_free(&this->swr);
+        LOG(FATAL) << "ERROR Failed to set output sample format (FLTP): " << errbuf;
+    }
+
+    // --- Initialize the context ---
+    if ((ret = swr_init(this->swr)) < 0)
+    {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        swr_free(&this->swr); // Clean up allocation
+        LOG(FATAL) << "ERROR Failed to initialize resample context: " << errbuf;
+    }
+
+    // If init is successful, update numChannels if mono was forced
+    if (mono)
+    {
+        this->numChannels = 1;
+    }
+    else
+    {
+        this->numChannels = pCodecContext->ch_layout.nb_channels;
+    }
+
+    // --- Corrected Logging ---
+    std::string in_layout_desc = "[Unknown Input Layout]";
+    // Describe the original input layout from the codec context
+    if (av_channel_layout_describe(&pCodecContext->ch_layout, errbuf, sizeof(errbuf)) >= 0)
+    {
+        in_layout_desc = errbuf;
+    }
+
+    std::string out_layout_desc;
+    if (mono)
+    {
+        out_layout_desc = "mono"; // Output is explicitly mono
+    }
+    else
+    {
+        // If not forcing mono, the output layout matches the input layout
+        // So, we describe the input layout again for the output description
+        if (av_channel_layout_describe(&pCodecContext->ch_layout, errbuf, sizeof(errbuf)) >= 0)
+        {
+            out_layout_desc = errbuf;
+        }
+        else
+        {
+            out_layout_desc = "[Unknown Output Layout]";
+        }
+    }
+
+    LOG(INFO) << "Successfully initialized SwrContext: "
+                << in_layout_desc
+                << " " << pCodecContext->sample_rate << "Hz " << av_get_sample_fmt_name(pCodecContext->sample_fmt)
+                << " -> "
+                << out_layout_desc
+                << " " << this->targetSampleRate << "Hz " << av_get_sample_fmt_name(AV_SAMPLE_FMT_FLTP);
 }
 
 void AudioReader::ToNDArray() {

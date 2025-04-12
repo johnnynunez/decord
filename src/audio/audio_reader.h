@@ -6,7 +6,10 @@
 #define DECORD_AUDIO_READER_H_
 
 #include <vector>
+extern "C"
+{
 #include <libavutil/channel_layout.h>  // Necesario para AVChannelLayout
+}
 
 #include "../../include/decord/audio_interface.h"
 
