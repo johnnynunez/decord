@@ -42,19 +42,11 @@ jobs:
           CIBW_SKIP: "cp*-manylinux_i686 cp*-musllinux* cp*-win32"
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET="15.0"
           CIBW_BEFORE_BUILD_LINUX: |
-            sudo apt-get update
-            sudo apt-get install -y \
-            build-essential \
-            make cmake ffmpeg \
-            libavcodec-dev \
-            libavfilter-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libavdevice-dev
+            yum install -y epel-release
+            yum install -y ffmpeg-devel cmake3 make gcc gcc-c++ pkgconfig
             mkdir build
             cd build
-            cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            cmake3 .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
             make
             cp libdecord.so ..
           CIBW_BEFORE_BUILD_MACOS: |
