@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel", "cmake>=3.20", "ninja", "numpy>=1.26.4"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "decord"
+name = "decord2"
 dynamic = ["version"]
 description = "An efficient video loader for deep learning with smart shuffling that seeks smartly"
 readme = "README.md"
@@ -14,12 +14,10 @@ dependencies = [
     "numpy>=1.26.4",
 ]
 authors=[
-    {name = "Lei Li", email = "leili.vision@outlook.com"},
-    {name = "Weisu Yin", email = "inws@outlook.com"},
+    {name = "Johnny Núñez", email = "johnnynunez@ub.edu"},
 ]
 maintainers=[
-    {name = "Lei Li", email = "leili.vision@outlook.com"},
-    {name = "Weisu Yin", email = "inws@outlook.com"},
+    {name = "Johnny Núñez", email = "johnnynunez@ub.edu"},
 ]
 
 [tool.setuptools.dynamic]
