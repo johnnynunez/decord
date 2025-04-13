@@ -93,8 +93,8 @@ jobs:
             choco install cmake ninja -y
             mkdir build
             cd build
-            cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release -A x64
-            ninja
+            cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_FLAGS="/DDECORD_EXPORTS" -DCMAKE_CONFIGURATION_TYPES="Release" -DFFMPEG_INCLUDE_DIR="C:\\cibw\\vendor\\include" -DFFMPEG_LIBRARIES="C:\\cibw\\vendor\\lib\\lib*.lib" ..
+            cmake --build . --config Release
             copy D:\a\decord\decord\build\Release\libdecord.dll ..
             copy D:\a\decord\decord\build\Release\decord.dll ..
           CIBW_ENVIRONMENT_LINUX: LD_LIBRARY_PATH=/tmp/vendor/lib:$LD_LIBRARY_PATH PKG_CONFIG_PATH=/tmp/vendor/lib/pkgconfig
