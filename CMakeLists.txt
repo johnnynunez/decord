@@ -18,7 +18,7 @@ endif()
 # NOTE: do not modify this file to change option values.
 # You can create a config.cmake at build folder
 # and add set(OPTION VALUE) to override these build options.
-# Alternatively, use cmake -DOPTION=VALUE through command-line.
+# Alernatively, use cmake -DOPTION=VALUE through command-line.
 decord_option(USE_CUDA "Build with CUDA" OFF)
 decord_option(USE_MSVC_MT "Build with MT" OFF)
 
@@ -31,10 +31,6 @@ endif(USE_CUDA)
 include_directories("include")
 include_directories("3rdparty/dlpack/include")
 include_directories("3rdparty/dmlc-core/include")
-
-# NumPy and Python headers
-find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
-include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
 # initial variables
 set(DECORD_LINKER_LIBS "")
@@ -62,7 +58,8 @@ if(MSVC)
   endif()
 else(MSVC)
   include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag("-std=c++11" SUPPORT_CXX11)
+  check_cxx_compiler_flag("-std=c++11"    SUPPORT_CXX11)
+  #set(CMAKE_CUDA_FLAGS "-std=c++11 ${CMAKE_CUDA_FLAGS}")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
   if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     message(STATUS "Build in Debug mode")
@@ -95,10 +92,12 @@ include(cmake/modules/FFmpeg.cmake)
 include(cmake/modules/CUDA.cmake)
 
 # Targets
+
 add_library(decord SHARED ${DECORD_CORE_SRCS} ${DECORD_FFMPEG_SRCS} ${NVDEC_SRCS} ${RUNTIME_CUDA_SRCS} ${NVDEC_CUDA_SRCS})
 
-# Link Python libraries (for NumPy integration)
-target_link_libraries(decord ${DECORD_LINKER_LIBS} ${DECORD_RUNTIME_LINKER_LIBS} ${Python3_LIBRARIES})
+# target_compile_features(decord PUBLIC cxx_std_11)
+
+target_link_libraries(decord ${DECORD_LINKER_LIBS} ${DECORD_RUNTIME_LINKER_LIBS})
 set_property(TARGET decord PROPERTY CUDA_STANDARD 11)
 
 # More target definitions
