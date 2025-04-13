@@ -70,7 +70,7 @@ jobs:
             yum install -y cmake make gcc gcc-c++ pkgconfig
             mkdir build
             cd build
-            cmake3 .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
             make
             cp libdecord.so ..
           CIBW_BEFORE_BUILD_MACOS: |
