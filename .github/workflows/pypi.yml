@@ -105,7 +105,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.arch }}
-          path: wheelhouse
+          path: ./wheelhouse/*.whl
 
   publish:
     name: Publish to PyPI
@@ -128,8 +128,11 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1.12
         with:
-          packages_dir: dist/
+          path: ./artifacts
+          merge-multiple: true
           skip_existing: true
+      - run: ls -R ./artifacts
+          
 
   testpypi:
     name: Publish to TestPyPI
@@ -146,12 +149,11 @@ jobs:
       - name: Download wheels
         uses: actions/download-artifact@v4
         with:
-          name: artifact
-          path: dist/
+          path: ./artifacts
 
       - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1.12
         with:
           repository_url: https://test.pypi.org/legacy/
-          packages_dir: dist/
+          packages_dir: ./artifacts
           skip_existing: true
