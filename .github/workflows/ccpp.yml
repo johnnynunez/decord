@@ -50,10 +50,10 @@ jobs:
           cd build
           make -j$(nproc)
 
-      - name: Install decord Python bindings (editable mode)
+      - name: Install decord Python bindings
         run: |
           cd python
-          pip3 install -e .
+          pip3 install .
 
       - name: Sanity test
         run: python3 -c "import decord; print(decord.__version__)"
