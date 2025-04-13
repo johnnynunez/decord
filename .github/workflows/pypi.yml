@@ -93,7 +93,7 @@ jobs:
             choco install cmake ninja -y
             mkdir build
             cd build
-            cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+            cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release -A x64
             ninja
             copy D:\a\decord\decord\build\Release\libdecord.dll ..
             copy D:\a\decord\decord\build\Release\decord.dll ..
