@@ -31,7 +31,8 @@ jobs:
             libavfilter-dev \
             libavformat-dev \
             libavutil-dev \
-            libswresample-dev
+            libswresample-dev \
+            libavdevice-dev
 
       - name: Upgrade pip and install Python dependencies
         run: |
