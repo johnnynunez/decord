@@ -95,7 +95,7 @@ jobs:
             cd build
             cmake .. -G Ninja -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
             ninja
-            copy .\Release\libdecord.dll ..
+            copy D:\a\decord\decord\build\Release\libdecord.dll ..
           CIBW_ENVIRONMENT_LINUX: LD_LIBRARY_PATH=/tmp/vendor/lib:$LD_LIBRARY_PATH PKG_CONFIG_PATH=/tmp/vendor/lib/pkgconfig
           CIBW_ENVIRONMENT_MACOS: PKG_CONFIG_PATH=/tmp/vendor/lib/pkgconfig LDFLAGS=-headerpad_max_install_names
           CIBW_ENVIRONMENT_WINDOWS: INCLUDE=C:\\cibw\\vendor\\include LIB=C:\\cibw\\vendor\\lib PYAV_SKIP_TESTS=unicode_filename
