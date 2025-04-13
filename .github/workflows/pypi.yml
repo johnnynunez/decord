@@ -43,7 +43,7 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET="15.0"
           CIBW_BEFORE_BUILD_LINUX: |
             yum install epel-release
-            yum localinstall --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+            yum install --nogpgcheck https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-8.noarch.rpm
             yum install ffmpeg ffmpeg-devel
             yum install -y epel-release
             yum install -y cmake make gcc gcc-c++ pkgconfig
